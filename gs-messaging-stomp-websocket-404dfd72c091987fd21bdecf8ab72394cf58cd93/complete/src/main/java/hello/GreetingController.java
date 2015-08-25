@@ -14,7 +14,7 @@ public class GreetingController {
     @SendTo("/topic/greetings")
     public Greeting greeting(HelloMessage message) throws Exception {
        
-       	// modified, add random prefix of pass or fail
+       	//  add random prefix of pass or fail
         Random rand = new Random();
         String data = null;
         boolean flag = (rand.nextInt(30) !=0);
@@ -26,8 +26,9 @@ public class GreetingController {
         {
         	data = "fail";
         }
-
-        return new Greeting(message.getName()+"__"+data);
+        // getName: get the script name
+        // getName2: get the class name
+        return new Greeting(message.getName()+"__"+data,message.getName2());
 
     }
 

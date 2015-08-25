@@ -23,9 +23,6 @@
         // this is for storing couting data
         var data = [];
 
-        // record fail data here.
-        var fail_data = [];
-
         function setConnected(connected) {
             document.getElementById('connect').disabled = connected;
             document.getElementById('disconnect').disabled = !connected;
@@ -40,12 +37,21 @@
                 setConnected(true);
                 console.log('Connected: ' + frame);
                 stompClient.subscribe('/topic/greetings', function(greeting){
-                    var json_content = JSON.parse(greeting.body).content
 
+                    var json_content = JSON.parse(greeting.body)
+                    arr = [];
+
+                    for (var event in json_content)
+                    {
+                        var datacp = json_content[event];
+                        arr.push(datacp);
+                    }
                     // show the received data
-                    showGreeting(json_content);
+                    showGreeting(arr);
+                    class_index = class_array.indexOf(arr[1]);
                     // updare all statistical data
-                    update_all(json_content);
+
+                    update_all(arr[0]);
 
                     /*
                     |-----|-------|-------|-------|------|
@@ -74,17 +80,16 @@
                     else ;
 
                     //  update counting value of corresponding group
-                    if (json_content.indexOf("pass") > -1)
+                    if (arr[0].indexOf("pass") > -1)
                         data[class_index*4]+=1;
                     else 
                     {
                         data[class_index*4 +1]+=1;
-                        showGreeting("fail~~here~~"+json_content);
 
                         var tb = document.getElementById('mytable');
                         var p = document.createElement('p');
                         p.style.wordWrap = 'break-word';
-                        p.appendChild(document.createTextNode(json_content));
+                        p.appendChild(document.createTextNode(arr[0]));
                         tb.rows[class_index+2].cells[4].appendChild(p);
                     }
                     data[class_index*4 +2]+=1;
@@ -128,16 +133,14 @@
                 insert_row(classname);
                 class_array.push(classname);
 
-                fail_data.push(classname);
             }
             else{
                 // do nothing
             }
 
-            class_index = class_array.indexOf(classname);
-
             stompClient.send("/app/hello", {}, JSON.stringify({ 'name': name ,
                                                                 'name2': classname}));
+
             if (times <1)
             {
                 console.log.out("finish");
