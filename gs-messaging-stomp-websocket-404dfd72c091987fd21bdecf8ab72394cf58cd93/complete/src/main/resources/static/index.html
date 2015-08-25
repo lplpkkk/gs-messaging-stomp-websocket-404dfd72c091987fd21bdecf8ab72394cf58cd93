@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Hello WebSocket</title>
+
+    <link href="bootstrap/css/bootstrap.css" rel="stylesheet">
+    <link href="dashboard.css" rel="stylesheet">
+
+    <script src="sockjs-0.3.4.js"></script>
+    <script src="stomp.js"></script>
+    <script src="jquery-2.1.4.min.js"></script>
+    <script type="text/javascript">
+
+        var stompClient = null;
+        var class_array = [];
+        var class_index ;
+
+        // used for updating the whole input data
+        var passcount = 0;
+        var failcount = 0;
+        var totalcount = 0;
+
+        // this is for storing couting data
+        var data = [];
+
+        // record fail data here.
+        var fail_data = [];
+
+        function setConnected(connected) {
+            document.getElementById('connect').disabled = connected;
+            document.getElementById('disconnect').disabled = !connected;
+            document.getElementById('conversationDiv').style.visibility = connected ? 'visible' : 'hidden';
+            document.getElementById('response').innerHTML = '';
+        }
+        
+        function connect() {
+            var socket = new SockJS('/hello');
+            stompClient = Stomp.over(socket);            
+            stompClient.connect({}, function(frame) {
+                setConnected(true);
+                console.log('Connected: ' + frame);
+                stompClient.subscribe('/topic/greetings', function(greeting){
+                    var json_content = JSON.parse(greeting.body).content
+
+                    // show the received data
+                    showGreeting(json_content);
+                    // updare all statistical data
+                    update_all(json_content);
+
+                    /*
+                    |-----|-------|-------|-------|------|
+                    |class|pass   |fail   |total  |fail  |
+                    |name |       |       |       |script|
+                    |-----|-------|-------|-------|----- |
+                    |group|data[0]|data[1]|data[2]|
+                    |name0|       |       |       |
+                    |-----|-------|-------|-------|         
+                     .
+                     .
+                     .
+                     .
+                     */
+                    // "init" value for "undefined" data
+                    if (!data[class_index*4])
+                        data[class_index*4] = 0;
+                    else ;
+                    // this is for failing data
+                    if (!data[class_index*4 +1])
+                        data[class_index*4 +1] = 0;
+                    else ;
+                    // this is for total data
+                    if (!data[class_index*4 +2])
+                        data[class_index*4 +2] = 0;
+                    else ;
+
+                    //  update counting value of corresponding group
+                    if (json_content.indexOf("pass") > -1)
+                        data[class_index*4]+=1;
+                    else 
+                    {
+                        data[class_index*4 +1]+=1;
+                        showGreeting("fail~~here~~"+json_content);
+
+                        var tb = document.getElementById('mytable');
+                        var p = document.createElement('p');
+                        p.style.wordWrap = 'break-word';
+                        p.appendChild(document.createTextNode(json_content));
+                        tb.rows[class_index+2].cells[4].appendChild(p);
+                    }
+                    data[class_index*4 +2]+=1;
+
+                    var tb = document.getElementById('mytable');
+                    tb.rows[class_index+2].cells[1].innerHTML = data[class_index*4];
+                    tb.rows[class_index+2].cells[2].innerHTML = data[class_index*4 + 1];
+                    tb.rows[class_index+2].cells[3].innerHTML = data[class_index*4 + 2]; 
+                });
+            });
+        }
+
+       function update_all(value)
+       {
+         // counting 
+        if (value.indexOf("pass") > -1)
+            passcount+=1;
+        else failcount+=1;
+        totalcount+=1;
+                    
+            update("pass1",passcount);
+            update("fail1",failcount);
+            update("total1",totalcount);
+       } 
+
+        function disconnect() {
+            if (stompClient != null) {
+                stompClient.disconnect();
+            }
+            setConnected(false);
+            console.log("Disconnected");
+        }
+        
+        function sendName(times) {
+            var name = document.getElementById('name').value;
+            var classname = document.getElementById('classname').value;
+
+            // test_if_in_array(classname);
+            if (class_array.indexOf(classname) == -1)
+            {
+                insert_row(classname);
+                class_array.push(classname);
+
+                fail_data.push(classname);
+            }
+            else{
+                // do nothing
+            }
+
+            class_index = class_array.indexOf(classname);
+
+            stompClient.send("/app/hello", {}, JSON.stringify({ 'name': name ,
+                                                                'name2': classname}));
+            if (times <1)
+            {
+                console.log.out("finish");
+            }
+            times--;
+            var counter = setTimeout('sendName('+times+')',100);
+        }
+
+        function showGreeting(message) {
+            var response = document.getElementById('response');
+            var p = document.createElement('p');
+            p.style.wordWrap = 'break-word';
+            p.appendChild(document.createTextNode(message));
+            response.appendChild(p);
+        }
+
+        function update(position,value)
+        {
+            var po = document.getElementById(position);
+            po.innerHTML = value;
+        }
+
+        function insert_row(showing)
+        {
+            var num = document.getElementById('mytable').rows.length;
+            var Tr = document.getElementById('mytable').insertRow(num);
+
+            // for each column data
+            Td = Tr.insertCell(Tr.cells.length);
+            Td.innerHTML = showing;
+            Td = Tr.insertCell(Tr.cells.length);
+            Td = Tr.insertCell(Tr.cells.length);
+            Td = Tr.insertCell(Tr.cells.length);
+            Td = Tr.insertCell(Tr.cells.length);
+        }
+
+    </script>
+</head>
+<body onload="disconnect()">
+<noscript><h2 style="color: #ff0000">Seems your browser doesn't support Javascript! Websocket relies on Javascript being enabled. Please enable
+    Javascript and reload this page!</h2></noscript>
+    
+        <div class="navbar navbar-inverse navbar-fixed-top" role="navigation" data-pg-collapsed>
+            <div class="container-fluid">
+                <div class="navbar-header">
+                    <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+                        <span class="sr-only">Toggle navigation</span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                        <span class="icon-bar"></span>
+                    </button>
+                    <a class="navbar-brand" href="#">Report Page!</a>
+                </div>
+                <div class="navbar-collapse collapse">
+                    <ul class="nav navbar-nav navbar-right">
+                        <li>
+                            <a href="#">Dashboard</a>
+                        </li>
+                        <li>
+                            <a href="#">Settings</a>
+                        </li>
+                        <li>
+                            <a href="#">Profile</a>
+                        </li>
+                        <li>
+                            <a href="#">Help</a>
+                        </li>
+                    </ul>
+                    <form class="navbar-form navbar-right">
+                        <input type="text" class="form-control" placeholder="Search...">
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="container-fluid">
+            <div class="row">
+                <div class="col-sm-3 sidebar">
+                    <ul class="nav nav-sidebar">
+                        <li class="active">
+                            <br>
+                        </li>
+                        <li>
+                            <a href="#cs" style="font-size:2em;">Client side link</a>
+                        </li>
+                        <li>
+                            <a href="#ss" style="font-size:2em;">Server side link</a>
+                        </li>
+                    </ul>
+                  
+                </div>
+
+                <div class="col-sm-9 col-sm-offset-3 main">
+                    <h1 class="page-header" id ="cs">Client Side</h1>
+
+                          <button id="connect" onclick="connect();">Connect</button>
+                          <button id="disconnect" disabled="disabled" onclick="disconnect();">Disconnect</button>
+                            
+                          <br />
+                          <br />
+
+                          <table id = "mytable" border="1" style="font-size:1.4em;" WIDTH="400" HEIGHT="60">
+                        <tr style="font-weight:bold;">
+                          <td>Class name </td>
+                          <td>Pass </td>
+                          <td>Fail </td> 
+                          <td>Total </td>
+                          <td>Fail script link</td>
+                        </tr>
+                        <tr>
+                          <td id = "group1"></td>
+
+                          <td id ="pass1"></td>
+                          <script>document.getElementById('pass1').innerHTML = passcount</script>
+                          <td id = "fail1"></td> 
+                          <script>document.getElementById('fail1').innerHTML = failcount</script>
+                          <td id = "total1"></td>
+                          <script>document.getElementById('total1').innerHTML = totalcount</script>
+
+                          <td></td>
+                        </tr>
+                          </table>
+
+                    <h2 class="sub-header" id = "ss">Server Side</h2>
+                    <div id="conversationDiv">
+                        <label>scipt name:</label><input type="text" id="name" /><br>
+                        <label>class name:</label><input type="text" id="classname" /><br>
+                        
+                        <button id="sendName" onclick="sendName(3);">Send</button>
+                        <p id="response"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+</body>
+</html>
